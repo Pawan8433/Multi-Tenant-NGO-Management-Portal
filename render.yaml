@@ -1,0 +1,61 @@
+# Render Blueprint — one-click deploy of ImpactHub (backend API + frontend SPA).
+# Docs: https://render.com/docs/blueprint-spec
+#
+# The database is NOT defined here (Render has no managed MySQL) — use your
+# external MySQL (e.g. Aiven) and fill the DB_* values in the dashboard.
+services:
+  # -------------------------------------------------------------------------
+  # Backend — Express REST API (Node)
+  # -------------------------------------------------------------------------
+  - type: web
+    name: impacthub-api
+    runtime: node
+    rootDir: server
+    region: singapore          # match your DB region (Aiven Asia Pacific)
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # Auto-generated strong secrets:
+      - key: JWT_ACCESS_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      - key: DB_SSL
+        value: "true"
+      # Secrets / per-environment values — set these in the Render dashboard:
+      - key: DB_HOST
+        sync: false
+      - key: DB_PORT
+        sync: false
+      - key: DB_USER
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: DB_NAME
+        sync: false
+      - key: CLIENT_URL          # set to the frontend URL after it's created
+        sync: false
+
+  # -------------------------------------------------------------------------
+  # Frontend — Vite/React static site
+  # -------------------------------------------------------------------------
+  - type: web
+    name: impacthub-web
+    runtime: static
+    rootDir: client
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    autoDeploy: true
+    routes:
+      # SPA fallback so React Router deep links work.
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: VITE_API_URL        # set to the backend URL + /api
+        sync: false
