@@ -3,19 +3,38 @@
 // tenant, then refills them.
 //
 // Usage:
-//   node src/db/seed-tenant.js                      # seeds the two default tenants
-//   node src/db/seed-tenant.js <tenantId> [<tenantId> ...]
-import { pool } from './pool.js';
+//   node src/db/seed-tenant.js <email|tenantId> [more...]
+//   node src/db/seed-tenant.js pratiksingh8928@gmail.com    # by account email
+//   node src/db/seed-tenant.js <tenant-uuid>                # by tenant id
+//   node src/db/seed-tenant.js                              # default sample tenants
+import { pool, queryOne } from './pool.js';
 
 const DEFAULT_TENANTS = [
   { id: '728d1498-4acb-4bdf-851b-87bc482399da', label: 'modern',  currency: 'USD' },
   { id: 'ca85c48b-304d-44a2-b735-b44f3142d00d', label: 'hope',    currency: 'USD' },
 ];
 
-const argTenants = process.argv.slice(2);
-const TENANTS = argTenants.length
-  ? argTenants.map((id, i) => ({ id, label: `tenant${i + 1}`, currency: 'USD' }))
-  : DEFAULT_TENANTS;
+// Each arg may be an email (resolved to its tenant) or a raw tenant_id.
+async function resolveTenants(args) {
+  if (!args.length) return DEFAULT_TENANTS;
+  const out = [];
+  for (let i = 0; i < args.length; i++) {
+    const a = args[i];
+    if (a.includes('@')) {
+      const row = await queryOne(
+        `SELECT u.tenant_id, n.name, n.currency
+         FROM users u JOIN ngos n ON n.tenant_id = u.tenant_id
+         WHERE u.email = ? LIMIT 1`,
+        [a]
+      );
+      if (!row) { console.error(`  ⚠ No account found for email: ${a}`); continue; }
+      out.push({ id: row.tenant_id, label: row.name || a, currency: row.currency || 'USD' });
+    } else {
+      out.push({ id: a, label: `tenant${i + 1}`, currency: 'USD' });
+    }
+  }
+  return out;
+}
 
 // --- small helpers ---------------------------------------------------------
 async function insert(table, row) {
@@ -219,6 +238,12 @@ async function seedTenant(t, idx) {
 }
 
 async function main() {
+  const TENANTS = await resolveTenants(process.argv.slice(2));
+  if (!TENANTS.length) {
+    console.error('No tenants to seed (email not found?).');
+    await pool.end();
+    process.exit(1);
+  }
   for (let i = 0; i < TENANTS.length; i++) {
     const t = TENANTS[i];
     const summary = await seedTenant(t, i);
