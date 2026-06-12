@@ -7,4 +7,9 @@ export default defineConfig({
     port: 5173,
     open: true,
   },
+  // `vite preview` (used when hosting on Render as a web service) blocks unknown
+  // hosts by default. Allow the deployment domain(s).
+  preview: {
+    allowedHosts: true,
+  },
 });
