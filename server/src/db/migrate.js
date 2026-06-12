@@ -16,12 +16,19 @@ async function main() {
     port: env.db.port,
     user: env.db.user,
     password: env.db.password,
+    ssl: env.db.ssl ? { rejectUnauthorized: false } : undefined,
     multipleStatements: true,
   });
 
-  await conn.query(
-    `CREATE DATABASE IF NOT EXISTS \`${env.db.database}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;`
-  );
+  // Managed providers (Aiven, Clever Cloud, …) pre-create the database and often
+  // forbid CREATE DATABASE — ignore the error in that case and just use it.
+  try {
+    await conn.query(
+      `CREATE DATABASE IF NOT EXISTS \`${env.db.database}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;`
+    );
+  } catch (e) {
+    console.warn(`  (skipping CREATE DATABASE: ${e.code || e.message})`);
+  }
   await conn.query(`USE \`${env.db.database}\`;`);
   await conn.query(schema);
   await conn.end();

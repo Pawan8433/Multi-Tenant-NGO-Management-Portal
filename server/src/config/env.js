@@ -21,6 +21,8 @@ export const env = {
     user: process.env.DB_USER || 'root',
     password: process.env.DB_PASSWORD || '',
     database: process.env.DB_NAME || 'impacthub',
+    // Managed cloud MySQL (Aiven, Clever Cloud, etc.) usually requires TLS.
+    ssl: process.env.DB_SSL === 'true',
   },
   jwt: {
     accessSecret: required('JWT_ACCESS_SECRET', 'dev-access-secret'),
