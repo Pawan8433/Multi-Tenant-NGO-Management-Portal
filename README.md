@@ -133,7 +133,8 @@ to `super_admin`:
 | System Settings    | `/superadmin/settings`      |
 
 **NGO Directory** — server-side search/sort/pagination, status filter, and a
-per-row actions menu: View Profile · Suspend · Reactivate · Impersonate · Delete.
+per-row actions menu: View Profile · Activate · Suspend · Impersonate · Delete
+(trial/expired NGOs get a one-click **Activate**; suspended ones get **Reactivate**).
 
 **Suspend / Reactivate** — sets `ngos.status` and stores a `suspension_reason`.
 Suspended (and expired / soft-deleted) NGOs are **blocked at login** with the reason.
@@ -213,10 +214,45 @@ deleted_at        DATETIME NULL        -- soft delete
 |---------|--------------|
 | `npm run db:migrate` | Create all base tables from `schema.sql` |
 | `npm run db:migrate:superadmin` | Add NGO management fields (idempotent) |
-| `npm run db:seed` | Reset the demo tenant and load sample data + role accounts |
-| `node src/db/seed-tenant.js [tenantId ...]` | Fill an **existing** tenant with realistic dummy data (members, donations, events…). Defaults to the two sample tenants; clears only data tables, never `ngos`/`users`. |
-| `node src/db/set-password.js <email> [password]` | Set & verify a user's password (default `Password123!`) |
+| `npm run db:seed` | Reset the demo tenant and load sample data + 5 role accounts |
+| `npm run db:inspect` | List every table's row count, plus all users and tenants (great for diagnostics) |
+| `node src/db/seed-tenant.js <email\|tenantId> [more…]` | Fill an **existing** tenant with realistic dummy data — by account **email** or tenant id. Clears only data tables, never `ngos`/`users`; re-runnable. |
+| `node src/db/create-account.js <email> [password] [role] [orgName]` | Create a login **and its NGO** (or reset the password if the email already exists). Roles: `ngo_admin` (default), `staff`, `volunteer_manager`, `finance_manager`, `super_admin`. |
 | `node src/db/create-superadmin.js [email] [password] [orgName]` | Remove any account with that email + its NGO, then create a fresh `super_admin` in a new workspace |
+| `node src/db/set-password.js <email> [password]` | Set & verify a user's password (default `Password123!`) |
+| `node src/db/change-email.js <oldEmail> <newEmail>` | Change a user's login email |
+
+> All scripts connect using `server/.env`, so they target whichever database it
+> points at (local or your cloud MySQL).
+
+---
+
+## Deployment (Render + Aiven)
+
+Deploys as **three pieces** — Render has no managed MySQL, so the database is hosted
+externally. A `render.yaml` blueprint at the repo root defines the two Render services
+for one-click setup.
+
+| Piece | Where | Config |
+|-------|-------|--------|
+| **Database** | Managed MySQL (e.g. **Aiven** free tier) | Requires TLS → set `DB_SSL=true` |
+| **Backend** | Render **Web Service** | Root `server` · build `npm install` · start `npm start` · health `/api/health` |
+| **Frontend** | Render **Static Site** | Root `client` · build `npm install && npm run build` · publish `dist` · rewrite `/* → /index.html` |
+
+**Steps**
+1. Provision a managed MySQL; note host / port / user / password / db.
+2. **Backend env vars** (Render dashboard): `DB_HOST`, `DB_PORT`, `DB_USER`,
+   `DB_PASSWORD`, `DB_NAME`, `DB_SSL=true`, `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`,
+   and `CLIENT_URL` = the frontend URL. **Don't set `PORT`** (Render injects it).
+3. **Frontend env var**: `VITE_API_URL` = `<backend-url>/api`.
+4. **Create the tables on the cloud DB** — point `server/.env` at it and run:
+   `npm run db:migrate && npm run db:migrate:superadmin && npm run db:seed`.
+
+**Gotchas (each one bit us during setup):**
+- `VITE_API_URL` is **build-time** — change it, then *rebuild* the static site.
+- `CLIENT_URL` must **exactly** match the frontend origin (no trailing slash) or CORS blocks requests.
+- Managed MySQL needs `DB_SSL=true`, or the connection handshake fails.
+- Free Render web services **sleep after ~15 min idle** (first request ~50s cold start).
 
 ---
 
