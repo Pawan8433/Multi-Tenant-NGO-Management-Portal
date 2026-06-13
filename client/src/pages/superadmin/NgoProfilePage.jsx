@@ -91,10 +91,13 @@ export default function NgoProfilePage() {
             <Stack spacing={1} direction={{ xs: 'row', md: 'column' }} sx={{ flexWrap: 'wrap' }}>
               <Button variant="contained" startIcon={<LoginRoundedIcon />} disabled={suspended || ngo.status === 'expired'}
                 onClick={() => impersonateMut.mutate()}>Impersonate</Button>
-              {suspended ? (
+              {ngo.status !== 'active' && (
                 <Button color="success" variant="outlined" startIcon={<CheckCircleRoundedIcon />}
-                  onClick={() => statusMut.mutate({ status: 'active' })}>Reactivate</Button>
-              ) : (
+                  onClick={() => statusMut.mutate({ status: 'active' })}>
+                  {suspended ? 'Reactivate' : 'Activate'}
+                </Button>
+              )}
+              {ngo.status !== 'suspended' && (
                 <Button color="warning" variant="outlined" startIcon={<BlockRoundedIcon />}
                   onClick={() => setSuspendDlg(true)}>Suspend</Button>
               )}

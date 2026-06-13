@@ -146,13 +146,15 @@ export default function NgoDirectoryPage() {
         <MenuItem onClick={() => { navigate(`/superadmin/ngos/${r.id}`); closeMenu(); }}>
           <ListItemIcon><VisibilityRoundedIcon fontSize="small" /></ListItemIcon> View Profile
         </MenuItem>
-        {r?.status !== 'suspended' ? (
+        {r?.status !== 'active' && (
+          <MenuItem onClick={() => { statusMut.mutate({ id: r.id, body: { status: 'active' } }); closeMenu(); }}>
+            <ListItemIcon><CheckCircleRoundedIcon fontSize="small" color="success" /></ListItemIcon>
+            {r?.status === 'suspended' ? 'Reactivate NGO' : 'Activate NGO'}
+          </MenuItem>
+        )}
+        {r?.status !== 'suspended' && (
           <MenuItem onClick={() => { setSuspendDlg(r); closeMenu(); }}>
             <ListItemIcon><BlockRoundedIcon fontSize="small" color="warning" /></ListItemIcon> Suspend NGO
-          </MenuItem>
-        ) : (
-          <MenuItem onClick={() => { statusMut.mutate({ id: r.id, body: { status: 'active' } }); closeMenu(); }}>
-            <ListItemIcon><CheckCircleRoundedIcon fontSize="small" color="success" /></ListItemIcon> Reactivate NGO
           </MenuItem>
         )}
         <MenuItem disabled={r?.status === 'suspended' || r?.status === 'expired'}
